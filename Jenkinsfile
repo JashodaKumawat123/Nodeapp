@@ -2,29 +2,30 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'yourdockerhubusername/node-app'
+        DOCKER_IMAGE = 'yourdockerhubusername/nodeapp'
+        IMAGE_TAG = 'latest'
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/your/repo.git'
+                git 'https://github.com/JashodaKumawat123/Nodeapp.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}")
+                    docker.build("${DOCKER_IMAGE}:${IMAGE_TAG}")
                 }
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                withDockerRegistry([credentialsId: 'dockerhub-creds', url: '']) {
-                    script {
-                        docker.image("${DOCKER_IMAGE}").push('latest')
+                script {
+                    withDockerRegistry([credentialsId: 'dockerhub-creds', url: 'https://index.docker.io/v1/']) {
+                        docker.image("${DOCKER_IMAGE}:${IMAGE_TAG}").push()
                     }
                 }
             }
@@ -32,7 +33,11 @@ pipeline {
 
         stage('Deploy Container') {
             steps {
-                sh 'docker run -d -p 3000:3000 --name node-container ${DOCKER_IMAGE}'
+                script {
+                    sh 'docker stop node-container || true'
+                    sh 'docker rm node-container || true'
+                    sh "docker run -d -p 3000:3000 --name node-container ${DOCKER_IMAGE}:${IMAGE_TAG}"
+                }
             }
         }
     }
@@ -40,8 +45,6 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            sh 'docker stop node-container || true'
-            sh 'docker rm node-container || true'
         }
     }
 }
