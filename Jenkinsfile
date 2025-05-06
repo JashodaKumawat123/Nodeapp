@@ -2,49 +2,56 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'yourdockerhubusername/nodeapp'
-        IMAGE_TAG = 'latest'
+        DOCKER_USERNAME = credentials('docker_username') // ID of DockerHub username credential
+        DOCKER_PASSWORD = credentials('docker-password') // ID of DockerHub password/token credential
+        IMAGE_NAME = 'nodeapp' // Optional: customize the image name
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
                 git 'https://github.com/JashodaKumawat123/Nodeapp.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Login') {
             steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:${IMAGE_TAG}")
-                }
+                bat """
+                    echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                """
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Build Docker Image') {
             steps {
-                script {
-                    withDockerRegistry([credentialsId: 'dockerhub-creds', url: 'https://index.docker.io/v1/']) {
-                        docker.image("${DOCKER_IMAGE}:${IMAGE_TAG}").push()
-                    }
-                }
+                bat """
+                    docker build -t %DOCKER_USERNAME%/%IMAGE_NAME%:latest .
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                bat """
+                    docker push %DOCKER_USERNAME%/%IMAGE_NAME%:latest
+                """
             }
         }
 
         stage('Deploy Container') {
             steps {
-                script {
-                    sh 'docker stop node-container || true'
-                    sh 'docker rm node-container || true'
-                    sh "docker run -d -p 3000:3000 --name node-container ${DOCKER_IMAGE}:${IMAGE_TAG}"
-                }
+                bat """
+                    docker stop node-container || exit 0
+                    docker rm node-container || exit 0
+                    docker run -d -p 3000:3000 --name node-container %DOCKER_USERNAME%/%IMAGE_NAME%:latest
+                """
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up...'
+            echo 'Pipeline completed. Cleaning up if necessary.'
         }
     }
 }
