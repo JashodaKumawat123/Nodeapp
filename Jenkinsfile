@@ -1,19 +1,16 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_USERNAME = credentials('docker_username') // ID of DockerHub username credential
-        DOCKER_PASSWORD = credentials('docker-password') // ID of DockerHub password/token credential
-        IMAGE_NAME = 'nodeapp' // Optional: customize the image name
+        DOCKER_USERNAME = credentials('docker_username') // Jenkins credentials ID
+        DOCKER_PASSWORD = credentials('docker-password') // Jenkins credentials ID
     }
-
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/JashodaKumawat123/Nodeapp.git'
+                // Checkout the code from the 'main' branch
+                git url: 'https://github.com/JashodaKumawat123/Nodeapp.git', branch: 'main'
             }
         }
-
         stage('Docker Login') {
             steps {
                 bat """
@@ -21,34 +18,21 @@ pipeline {
                 """
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 bat """
-                    docker build -t %DOCKER_USERNAME%/%IMAGE_NAME%:latest .
+                    docker build -t %DOCKER_USERNAME%/node-app:latest .
                 """
             }
         }
-
         stage('Push Docker Image') {
             steps {
                 bat """
-                    docker push %DOCKER_USERNAME%/%IMAGE_NAME%:latest
-                """
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                bat """
-                    docker stop node-container || exit 0
-                    docker rm node-container || exit 0
-                    docker run -d -p 3000:3000 --name node-container %DOCKER_USERNAME%/%IMAGE_NAME%:latest
+                    docker push %DOCKER_USERNAME%/node-app:latest
                 """
             }
         }
     }
-
     post {
         always {
             echo 'Pipeline completed. Cleaning up if necessary.'
